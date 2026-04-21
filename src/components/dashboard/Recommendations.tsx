@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Lightbulb } from "lucide-react";
+import { Lightbulb, Sparkles } from "lucide-react";
 import type { AnalyzedSupplier } from "@/lib/risk-engine";
 
 export function Recommendations({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
@@ -14,10 +14,18 @@ export function Recommendations({ suppliers }: { suppliers: AnalyzedSupplier[] }
         {top.map((s) => (
           <div key={s.name} className="rounded-xl border border-border/50 bg-background/40 p-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">{s.name} <span className="text-xs text-muted-foreground">· {s.city}</span></p>
+              <p className="text-sm font-semibold">
+                {s.name} <span className="text-xs text-muted-foreground">· {s.city} · {s.tier}</span>
+              </p>
               <span className="font-mono text-xs text-muted-foreground">{s.riskScore}/100</span>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{s.recommendation}</p>
+            <p className="mt-1 text-xs italic text-muted-foreground">{s.riskReason}</p>
+            <p className="mt-1 text-xs text-foreground/90">{s.recommendation}</p>
+            {s.alternativeSupplier && (
+              <p className="mt-1 inline-flex items-center gap-1 text-xs text-primary">
+                <Sparkles className="h-3 w-3" /> Alternative: {s.alternativeSupplier}
+              </p>
+            )}
           </div>
         ))}
       </div>

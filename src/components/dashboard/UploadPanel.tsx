@@ -28,6 +28,8 @@ export function UploadPanel({ onData, onLoadSample }: Props) {
             city: (r.city ?? "").trim(),
             dependency: ((r.dependency ?? "Medium").trim() as Dependency),
             category: (r.category ?? "General").trim(),
+            tier: (r.tier ?? "Tier 1").trim() || "Tier 1",
+            parent_supplier: (r.parent_supplier ?? "").trim(),
           }))
           .filter((r) => r.name && r.city);
         if (!rows.length) return toast.error("No valid rows found in CSV");

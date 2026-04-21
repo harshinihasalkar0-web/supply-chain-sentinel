@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Activity, AlertTriangle, ShieldCheck, Users } from "lucide-react";
+import { Activity, AlertTriangle, ShieldCheck, Users, Network, Crosshair } from "lucide-react";
 import type { AnalyzedSupplier } from "@/lib/risk-engine";
 
 export function KpiCards({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
@@ -7,16 +7,20 @@ export function KpiCards({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
   const high = suppliers.filter((s) => s.riskLevel === "High").length;
   const avg = total ? Math.round(suppliers.reduce((a, s) => a + s.riskScore, 0) / total) : 0;
   const stable = suppliers.filter((s) => s.riskLevel === "Low").length;
+  const critical = suppliers.filter((s) => s.isCriticalNode).length;
+  const spof = suppliers.filter((s) => s.isSinglePointOfFailure).length;
 
   const kpis = [
     { label: "Overall Risk", value: avg, suffix: "/100", icon: Activity, accent: "gradient-primary" },
     { label: "Total Suppliers", value: total, suffix: "", icon: Users, accent: "gradient-accent" },
     { label: "High Risk", value: high, suffix: "", icon: AlertTriangle, accent: "gradient-danger" },
     { label: "Stable", value: stable, suffix: "", icon: ShieldCheck, accent: "gradient-warning" },
+    { label: "Critical Nodes", value: critical, suffix: "", icon: Network, accent: "gradient-accent" },
+    { label: "Single Pts of Failure", value: spof, suffix: "", icon: Crosshair, accent: "gradient-danger" },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
       {kpis.map((k) => (
         <Card key={k.label} className="gradient-card group relative overflow-hidden border-border/60 p-5 shadow-card">
           <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-20 blur-2xl ${k.accent}`} />

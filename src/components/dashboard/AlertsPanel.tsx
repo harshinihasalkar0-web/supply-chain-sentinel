@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, CloudRain, Network, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CloudRain, Network, ShieldAlert, Crosshair, GitBranch } from "lucide-react";
 import type { AnalyzedSupplier } from "@/lib/risk-engine";
 
 export function AlertsPanel({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
@@ -12,6 +12,36 @@ export function AlertsPanel({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
       title: "Critical Supplier Risk Detected",
       body: `${critical.length} high-dependency supplier${critical.length > 1 ? "s" : ""} at HIGH risk: ${critical.map((s) => s.name).join(", ")}.`,
       tone: "gradient-danger",
+    });
+  }
+
+  const cascading = suppliers.filter((s) => s.cascadingRiskImpact > 0);
+  if (cascading.length) {
+    alerts.push({
+      icon: GitBranch,
+      title: "Cascading Failure Risk Detected",
+      body: `${cascading.length} supplier${cascading.length > 1 ? "s" : ""} exposed to upstream risk: ${cascading.slice(0, 4).map((s) => `${s.name} ← ${s.upstreamRiskSource}`).join("; ")}.`,
+      tone: "gradient-danger",
+    });
+  }
+
+  const spofs = suppliers.filter((s) => s.isSinglePointOfFailure);
+  if (spofs.length) {
+    alerts.push({
+      icon: Crosshair,
+      title: "Single Point of Failure Identified",
+      body: `${spofs.length} high-dependency supplier${spofs.length > 1 ? "s have" : " has"} no safe alternative: ${spofs.slice(0, 4).map((s) => s.name).join(", ")}.`,
+      tone: "gradient-warning",
+    });
+  }
+
+  const criticalNodes = suppliers.filter((s) => s.isCriticalNode);
+  if (criticalNodes.length) {
+    alerts.push({
+      icon: Network,
+      title: "Critical Supplier Dependency",
+      body: `${criticalNodes.length} supplier${criticalNodes.length > 1 ? "s are" : " is"} a hub for multiple downstream partners: ${criticalNodes.slice(0, 4).map((s) => s.name).join(", ")}.`,
+      tone: "gradient-accent",
     });
   }
 

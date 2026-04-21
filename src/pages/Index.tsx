@@ -6,18 +6,20 @@ import { RiskCharts } from "@/components/dashboard/RiskCharts";
 import { SupplierTable } from "@/components/dashboard/SupplierTable";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { Recommendations } from "@/components/dashboard/Recommendations";
-import { analyze, type AnalyzedSupplier, type SupplierInput } from "@/lib/risk-engine";
+import { analyze, enrichGraph, type AnalyzedSupplier, type SupplierInput } from "@/lib/risk-engine";
 import { fetchWeather } from "@/lib/weather";
 
 const SAMPLE: SupplierInput[] = [
-  { name: "ABC Corp", city: "Shanghai", dependency: "High", category: "Electronics" },
-  { name: "XYZ Ltd", city: "Delhi", dependency: "Medium", category: "Raw Materials" },
-  { name: "Nordic Steel", city: "Oslo", dependency: "Low", category: "Metals" },
-  { name: "Pacific Textiles", city: "Karachi", dependency: "High", category: "Textiles" },
-  { name: "Bavarian Motors", city: "Munich", dependency: "Low", category: "Automotive" },
-  { name: "Tokyo Chips", city: "Tokyo", dependency: "Low", category: "Semiconductors" },
-  { name: "Lagos Energy", city: "Lagos", dependency: "High", category: "Energy" },
-  { name: "Moscow Refinery", city: "Moscow", dependency: "High", category: "Chemicals" },
+  { name: "ABC Corp", city: "Shanghai", dependency: "High", category: "Electronics", tier: "Tier 1", parent_supplier: "" },
+  { name: "SubSupplier A", city: "Shenzhen", dependency: "High", category: "Components", tier: "Tier 2", parent_supplier: "ABC Corp" },
+  { name: "Rare Earth Co", city: "Beijing", dependency: "Medium", category: "Components", tier: "Tier 3", parent_supplier: "SubSupplier A" },
+  { name: "XYZ Ltd", city: "Delhi", dependency: "Medium", category: "Electronics", tier: "Tier 1", parent_supplier: "" },
+  { name: "Nordic Steel", city: "Oslo", dependency: "Low", category: "Metals", tier: "Tier 1", parent_supplier: "" },
+  { name: "Pacific Textiles", city: "Karachi", dependency: "High", category: "Textiles", tier: "Tier 1", parent_supplier: "" },
+  { name: "Bavarian Motors", city: "Munich", dependency: "Low", category: "Automotive", tier: "Tier 1", parent_supplier: "" },
+  { name: "Tokyo Chips", city: "Tokyo", dependency: "Low", category: "Semiconductors", tier: "Tier 2", parent_supplier: "ABC Corp" },
+  { name: "Lagos Energy", city: "Lagos", dependency: "High", category: "Energy", tier: "Tier 1", parent_supplier: "" },
+  { name: "Moscow Refinery", city: "Moscow", dependency: "High", category: "Chemicals", tier: "Tier 2", parent_supplier: "Lagos Energy" },
 ];
 
 const Index = () => {
@@ -32,7 +34,7 @@ const Index = () => {
         return analyze(r, w);
       })
     );
-    setSuppliers(results);
+    setSuppliers(enrichGraph(results));
     setLoading(false);
   };
 
@@ -93,7 +95,7 @@ const Index = () => {
         )}
 
         <footer className="pt-8 text-center text-xs text-muted-foreground">
-          Built with React + Tailwind · Weather via OpenWeatherMap (optional) · CSV format: <code className="rounded bg-secondary/60 px-1.5 py-0.5">name,city,dependency,category</code>
+          Built with React + Tailwind · Weather via OpenWeatherMap (optional) · CSV format: <code className="rounded bg-secondary/60 px-1.5 py-0.5">name,city,dependency,category,tier,parent_supplier</code>
         </footer>
       </main>
     </div>

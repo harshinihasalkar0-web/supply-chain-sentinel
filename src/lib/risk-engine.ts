@@ -5,6 +5,8 @@ export interface SupplierInput {
   city: string;
   dependency: Dependency;
   category: string;
+  tier?: string;
+  parent_supplier?: string;
 }
 
 export interface WeatherInfo {
@@ -19,11 +21,20 @@ export interface AnalyzedSupplier extends SupplierInput {
   weatherScore: number;
   geoScore: number;
   logisticsScore: number;
+  cascadingRiskImpact: number;
+  upstreamRiskSource: string | null;
   riskScore: number;
+  baseRiskScore: number;
   riskLevel: "Low" | "Medium" | "High";
   prediction: { label: string; confidence: number };
   recommendation: string;
   country: string;
+  tier: string;
+  parent_supplier: string | null;
+  isCriticalNode: boolean;
+  isSinglePointOfFailure: boolean;
+  riskReason: string;
+  alternativeSupplier: string | null;
 }
 
 // Static city -> country + geopolitical tier

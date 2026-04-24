@@ -1,90 +1,168 @@
-import { useRef, useState } from "react";
+import { runAnalysis } from "@/lib/api";
+import { useState } from "react";
 import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Upload, KeyRound, Sparkles, FileDown } from "lucide-react";
+import { Sparkles, KeyRound, FileDown, Upload, Loader2 } from "lucide-react";
 import { getApiKey, setApiKey } from "@/lib/weather";
-import type { SupplierInput, Dependency } from "@/lib/risk-engine";
 import { toast } from "sonner";
 
+type SupplierInput = {
+  name: string;
+  city: string;
+  dependency: string;
+  category: string;
+  tier: string;
+  parent_supplier?: string;
+};
+
 interface Props {
-  onData: (rows: SupplierInput[]) => void;
-  onLoadSample: () => void;
+  onData: (data: any[]) => void;
 }
 
-export function UploadPanel({ onData, onLoadSample }: Props) {
+export function UploadPanel({ onData }: Props) {
   const [key, setKey] = useState(getApiKey() ?? "");
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handleFile = (file: File) => {
-    Papa.parse<Record<string, string>>(file, {
+    setIsAnalyzing(true);
+    
+    Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (res) => {
+      // The regex helps remove hidden BOM characters from Excel CSVs
+      transformHeader: (h) => h.replace(/^\uFEFF/, "").trim().toLowerCase(),
+
+      complete: async (res: any) => {
         const rows: SupplierInput[] = res.data
-          .map((r) => ({
-            name: (r.name ?? "").trim(),
-            city: (r.city ?? "").trim(),
-            dependency: ((r.dependency ?? "Medium").trim() as Dependency),
-            category: (r.category ?? "General").trim(),
-            tier: (r.tier ?? "Tier 1").trim() || "Tier 1",
-            parent_supplier: (r.parent_supplier ?? "").trim(),
-          }))
-          .filter((r) => r.name && r.city);
-        if (!rows.length) return toast.error("No valid rows found in CSV");
-        onData(rows);
-        toast.success(`Loaded ${rows.length} suppliers`);
+          .map((r: any) => {
+            const clean: any = {};
+            Object.keys(r).forEach((k) => {
+              const key = k.trim().toLowerCase();
+              const value = String(r[k] ?? "").trim();
+              clean[key] = value;
+            });
+
+            return {
+              name: clean.name,
+              city: clean.city,
+              dependency: clean.dependency || "Medium",
+              category: clean.category || "General",
+              tier: clean.tier || "Tier 1",
+              parent_supplier: clean.parent_supplier || "",
+            };
+          })
+          .filter((r: SupplierInput) => r.name && r.city);
+
+        if (!rows.length) {
+          toast.error("No valid suppliers found in CSV ❌");
+          setIsAnalyzing(false);
+          return;
+        }
+
+        try {
+          const result = await runAnalysis(rows);
+          const data = Array.isArray(result) ? result : result?.suppliers || [];
+
+          onData(data);
+          toast.success(`Analyzed ${data.length} suppliers successfully ✅`);
+        } catch (err) {
+          console.error("Analysis Error:", err);
+          toast.error("Backend analysis failed ❌");
+        } finally {
+          setIsAnalyzing(false);
+        }
       },
-      error: () => toast.error("Failed to parse CSV"),
+      error: (error) => {
+        console.error("Parse Error:", error);
+        toast.error("CSV parse failed ❌");
+        setIsAnalyzing(false);
+      },
     });
   };
 
+  const handleBackendCheck = async () => {
+    try {
+      await runAnalysis([]);
+      toast.success("Backend connection verified ✅");
+    } catch {
+      toast.error("Could not reach backend server ❌");
+    }
+  };
+
   return (
-    <Card className="gradient-card border-border/60 p-6 shadow-card">
-      <div className="flex flex-col gap-5 md:flex-row md:items-end">
+    <Card className="p-6">
+      <div className="flex flex-col gap-6 md:flex-row md:items-end">
+        
+        {/* API KEY SECTION */}
         <div className="flex-1 space-y-2">
-          <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <KeyRound className="h-3.5 w-3.5" /> OpenWeather API Key (optional)
+          <label className="flex items-center gap-2 text-xs font-bold uppercase text-muted-foreground">
+            <KeyRound className="h-4 w-4" />
+            OpenWeather API Key
           </label>
           <div className="flex gap-2">
             <Input
               type="password"
-              placeholder="Paste key for live weather (otherwise simulated)"
+              placeholder="Enter your API key"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              className="bg-background/60"
+              className="max-w-sm"
             />
             <Button
-              variant="secondary"
               onClick={() => {
                 setApiKey(key);
-                toast.success("API key saved locally");
+                toast.success("API key saved locally ✅");
               }}
             >
               Save
             </Button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-          />
-          <Button onClick={() => fileRef.current?.click()} className="gradient-primary text-primary-foreground shadow-glow">
-            <Upload className="mr-2 h-4 w-4" /> Upload CSV
+
+        {/* ACTION BUTTONS */}
+        <div className="flex flex-wrap gap-3 items-center">
+          
+          {/* STYLED UPLOAD BUTTON */}
+          <div className="relative">
+            <input
+              type="file"
+              id="csv-upload"
+              accept=".csv"
+              className="sr-only" // Hide the default browser input
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
+                e.target.value = ""; // Reset to allow re-uploading same file
+              }}
+              disabled={isAnalyzing}
+            />
+            <label htmlFor="csv-upload">
+              <Button asChild disabled={isAnalyzing} className="cursor-pointer">
+                <span>
+                  {isAnalyzing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  {isAnalyzing ? "Analyzing..." : "Upload CSV"}
+                </span>
+              </Button>
+            </label>
+          </div>
+
+          <Button variant="outline" onClick={handleBackendCheck} disabled={isAnalyzing}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Test API
           </Button>
-          <Button variant="outline" onClick={onLoadSample}>
-            <Sparkles className="mr-2 h-4 w-4" /> Load Sample
-          </Button>
+
           <Button variant="ghost" asChild>
             <a href="/sample-suppliers.csv" download>
-              <FileDown className="mr-2 h-4 w-4" /> Template
+              <FileDown className="mr-2 h-4 w-4" />
+              Template
             </a>
           </Button>
+
         </div>
       </div>
     </Card>

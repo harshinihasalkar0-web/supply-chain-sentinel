@@ -1,33 +1,59 @@
 import { Card } from "@/components/ui/card";
-import { Lightbulb, Sparkles } from "lucide-react";
-import type { AnalyzedSupplier } from "@/lib/risk-engine";
+import { Lightbulb } from "lucide-react";
 
-export function Recommendations({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
-  const top = [...suppliers].sort((a, b) => b.riskScore - a.riskScore).slice(0, 5);
+// ✅ simple backend-compatible type
+type Supplier = any;
+
+export function Recommendations({ suppliers }: { suppliers: Supplier[] }) {
+
+  // 🔥 Sort by risk_score (backend field)
+  const top = [...suppliers]
+    .sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0))
+    .slice(0, 5);
+
   return (
-    <Card className="gradient-card border-border/60 p-5 shadow-card">
+    <Card className="p-5">
       <div className="mb-4 flex items-center gap-2">
-        <Lightbulb className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">AI Recommendations</h3>
+        <Lightbulb className="h-5 w-5 text-yellow-500" />
+        <h3 className="text-lg font-semibold">Recommendations</h3>
       </div>
+
       <div className="space-y-3">
-        {top.map((s) => (
-          <div key={s.name} className="rounded-xl border border-border/50 bg-background/40 p-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">
-                {s.name} <span className="text-xs text-muted-foreground">· {s.city} · {s.tier}</span>
+
+        {top.length === 0 ? (
+          <p className="text-sm text-gray-500">No data available</p>
+        ) : (
+          top.map((s: any) => (
+            <div
+              key={s.name}
+              className="border rounded-lg p-3"
+            >
+              {/* Supplier Info */}
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-semibold">
+                  {s.name}
+                  <span className="text-xs text-gray-500 ml-2">
+                    {s.city} · {s.tier || "N/A"}
+                  </span>
+                </p>
+
+                <span className="text-xs font-mono text-gray-500">
+                  {s.risk_score || 0}/100
+                </span>
+              </div>
+
+              {/* Recommendation Logic */}
+              <p className="mt-2 text-xs text-gray-600">
+                {s.risk_level === "High"
+                  ? "⚠ High risk — consider alternative suppliers"
+                  : s.risk_level === "Medium"
+                  ? "⚠ Moderate risk — monitor closely"
+                  : "✅ Low risk — stable supplier"}
               </p>
-              <span className="font-mono text-xs text-muted-foreground">{s.riskScore}/100</span>
             </div>
-            <p className="mt-1 text-xs italic text-muted-foreground">{s.riskReason}</p>
-            <p className="mt-1 text-xs text-foreground/90">{s.recommendation}</p>
-            {s.alternativeSupplier && (
-              <p className="mt-1 inline-flex items-center gap-1 text-xs text-primary">
-                <Sparkles className="h-3 w-3" /> Alternative: {s.alternativeSupplier}
-              </p>
-            )}
-          </div>
-        ))}
+          ))
+        )}
+
       </div>
     </Card>
   );

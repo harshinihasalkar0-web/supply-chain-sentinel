@@ -1,92 +1,83 @@
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, CloudRain, Network, ShieldAlert, Crosshair, GitBranch } from "lucide-react";
-import type { AnalyzedSupplier } from "@/lib/risk-engine";
+import { AlertTriangle } from "lucide-react";
 
-export function AlertsPanel({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
-  const alerts: { icon: any; title: string; body: string; tone: string }[] = [];
+// ✅ simple type (backend compatible)
+type Supplier = any;
 
-  const critical = suppliers.filter((s) => s.dependency === "High" && s.riskLevel === "High");
-  if (critical.length) {
+export function AlertsPanel({ suppliers }: { suppliers: Supplier[] }) {
+
+  const alerts: { title: string; body: string }[] = [];
+
+  // 🔴 High risk suppliers
+  const highRisk = suppliers.filter(
+    (s) => s.risk_level === "High"
+  );
+
+  if (highRisk.length) {
     alerts.push({
-      icon: ShieldAlert,
-      title: "Critical Supplier Risk Detected",
-      body: `${critical.length} high-dependency supplier${critical.length > 1 ? "s" : ""} at HIGH risk: ${critical.map((s) => s.name).join(", ")}.`,
-      tone: "gradient-danger",
+      title: "High Risk Suppliers ⚠️",
+      body: `${highRisk.length} supplier(s) at high risk: ${highRisk
+        .slice(0, 4)
+        .map((s) => s.name)
+        .join(", ")}`,
     });
   }
 
-  const cascading = suppliers.filter((s) => s.cascadingRiskImpact > 0);
-  if (cascading.length) {
+  // 🟡 Medium risk warning
+  const mediumRisk = suppliers.filter(
+    (s) => s.risk_level === "Medium"
+  );
+
+  if (mediumRisk.length > 3) {
     alerts.push({
-      icon: GitBranch,
-      title: "Cascading Failure Risk Detected",
-      body: `${cascading.length} supplier${cascading.length > 1 ? "s" : ""} exposed to upstream risk: ${cascading.slice(0, 4).map((s) => `${s.name} ← ${s.upstreamRiskSource}`).join("; ")}.`,
-      tone: "gradient-danger",
+      title: "Moderate Risk Detected",
+      body: `${mediumRisk.length} suppliers showing moderate risk`,
     });
   }
 
-  const spofs = suppliers.filter((s) => s.isSinglePointOfFailure);
-  if (spofs.length) {
-    alerts.push({
-      icon: Crosshair,
-      title: "Single Point of Failure Identified",
-      body: `${spofs.length} high-dependency supplier${spofs.length > 1 ? "s have" : " has"} no safe alternative: ${spofs.slice(0, 4).map((s) => s.name).join(", ")}.`,
-      tone: "gradient-warning",
-    });
-  }
+  // 🌍 Location clustering
+  const cityCount: Record<string, number> = {};
 
-  const criticalNodes = suppliers.filter((s) => s.isCriticalNode);
-  if (criticalNodes.length) {
-    alerts.push({
-      icon: Network,
-      title: "Critical Supplier Dependency",
-      body: `${criticalNodes.length} supplier${criticalNodes.length > 1 ? "s are" : " is"} a hub for multiple downstream partners: ${criticalNodes.slice(0, 4).map((s) => s.name).join(", ")}.`,
-      tone: "gradient-accent",
-    });
-  }
+  suppliers.forEach((s) => {
+    cityCount[s.city] = (cityCount[s.city] || 0) + 1;
+  });
 
-  const stormy = suppliers.filter((s) => s.weather.condition === "Storm" || s.weather.condition === "Rain");
-  if (stormy.length) {
-    alerts.push({
-      icon: CloudRain,
-      title: "Weather Disruption in Key Region",
-      body: `Adverse weather impacting ${stormy.length} location${stormy.length > 1 ? "s" : ""} – ${[...new Set(stormy.map((s) => s.city))].slice(0, 4).join(", ")}.`,
-      tone: "gradient-accent",
-    });
-  }
+  const clusters = Object.entries(cityCount).filter(
+    ([_, count]) => count >= 2
+  );
 
-  const cityCount = suppliers.reduce<Record<string, number>>((a, s) => ((a[s.city] = (a[s.city] ?? 0) + 1), a), {});
-  const clusters = Object.entries(cityCount).filter(([, n]) => n >= 2);
   if (clusters.length) {
     alerts.push({
-      icon: Network,
-      title: "Supply Chain Vulnerability Identified",
-      body: `Geographic concentration risk in ${clusters.map(([c, n]) => `${c} (${n})`).join(", ")}. Consider diversifying.`,
-      tone: "gradient-warning",
+      title: "Geographic Risk",
+      body: `Multiple suppliers in same city: ${clusters
+        .map(([city, count]) => `${city} (${count})`)
+        .join(", ")}`,
     });
   }
 
+  // ✅ Default message
   if (!alerts.length) {
     alerts.push({
-      icon: AlertTriangle,
-      title: "All Systems Nominal",
-      body: "No critical risks detected across your current supplier network.",
-      tone: "gradient-primary",
+      title: "All Systems Normal",
+      body: "No major risks detected",
     });
   }
 
   return (
-    <Card className="gradient-card border-border/60 p-5 shadow-card">
+    <Card className="p-5">
       <h3 className="mb-4 text-lg font-semibold">Live Alerts</h3>
+
       <div className="space-y-3">
         {alerts.map((a, i) => (
-          <div key={i} className="flex gap-3 rounded-xl border border-border/50 bg-background/40 p-3">
-            <div className={`h-9 w-9 shrink-0 rounded-lg ${a.tone} flex items-center justify-center text-primary-foreground shadow-glow`}>
-              <a.icon className="h-4 w-4" />
-            </div>
+          <div
+            key={i}
+            className="flex gap-3 border p-3 rounded-lg"
+          >
+            <AlertTriangle className="h-4 w-4 text-red-500 mt-1" />
+
             <div>
               <p className="text-sm font-semibold">{a.title}</p>
-              <p className="text-xs text-muted-foreground">{a.body}</p>
+              <p className="text-xs text-gray-500">{a.body}</p>
             </div>
           </div>
         ))}

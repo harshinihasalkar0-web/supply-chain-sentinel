@@ -1,43 +1,38 @@
 import { Card } from "@/components/ui/card";
-import { Activity, AlertTriangle, ShieldCheck, Users, Network, Crosshair } from "lucide-react";
-import type { AnalyzedSupplier } from "@/lib/risk-engine";
 
-export function KpiCards({ suppliers }: { suppliers: AnalyzedSupplier[] }) {
+type Supplier = any;
+
+export function KpiCards({ suppliers }: { suppliers: Supplier[] }) {
   const total = suppliers.length;
-  const high = suppliers.filter((s) => s.riskLevel === "High").length;
-  const avg = total ? Math.round(suppliers.reduce((a, s) => a + s.riskScore, 0) / total) : 0;
-  const stable = suppliers.filter((s) => s.riskLevel === "Low").length;
-  const critical = suppliers.filter((s) => s.isCriticalNode).length;
-  const spof = suppliers.filter((s) => s.isSinglePointOfFailure).length;
 
-  const kpis = [
-    { label: "Overall Risk", value: avg, suffix: "/100", icon: Activity, accent: "gradient-primary" },
-    { label: "Total Suppliers", value: total, suffix: "", icon: Users, accent: "gradient-accent" },
-    { label: "High Risk", value: high, suffix: "", icon: AlertTriangle, accent: "gradient-danger" },
-    { label: "Stable", value: stable, suffix: "", icon: ShieldCheck, accent: "gradient-warning" },
-    { label: "Critical Nodes", value: critical, suffix: "", icon: Network, accent: "gradient-accent" },
-    { label: "Single Pts of Failure", value: spof, suffix: "", icon: Crosshair, accent: "gradient-danger" },
-  ];
+  const highRisk = suppliers.filter(
+    (s) => s.risk_level === "High"
+  ).length;
+
+  const avgRisk =
+    suppliers.reduce((sum, s) => sum + (s.risk_score || 0), 0) /
+    (suppliers.length || 1);
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-      {kpis.map((k) => (
-        <Card key={k.label} className="gradient-card group relative overflow-hidden border-border/60 p-5 shadow-card">
-          <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-20 blur-2xl ${k.accent}`} />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{k.label}</p>
-              <p className="mt-2 text-4xl font-bold tracking-tight">
-                {k.value}
-                <span className="text-base font-medium text-muted-foreground">{k.suffix}</span>
-              </p>
-            </div>
-            <div className={`rounded-xl p-2.5 ${k.accent} text-primary-foreground shadow-glow`}>
-              <k.icon className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
-      ))}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <Card className="p-4">
+        <h3 className="text-sm text-gray-500">Total Suppliers</h3>
+        <p className="text-2xl font-bold">{total}</p>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="text-sm text-gray-500">High Risk</h3>
+        <p className="text-2xl font-bold text-red-500">{highRisk}</p>
+      </Card>
+
+      <Card className="p-4">
+        <h3 className="text-sm text-gray-500">Average Risk</h3>
+        <p className="text-2xl font-bold">
+          {avgRisk.toFixed(1)}
+        </p>
+      </Card>
+
     </div>
   );
 }

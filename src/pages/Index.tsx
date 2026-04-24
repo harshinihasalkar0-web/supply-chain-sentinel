@@ -1,102 +1,109 @@
-import { useEffect, useState } from "react";
-import { Activity, Radar } from "lucide-react";
+import { useState } from "react";
+import { Activity, Radar, LogOut } from "lucide-react";
 import { UploadPanel } from "@/components/dashboard/UploadPanel";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { RiskCharts } from "@/components/dashboard/RiskCharts";
 import { SupplierTable } from "@/components/dashboard/SupplierTable";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { Recommendations } from "@/components/dashboard/Recommendations";
-import { analyze, enrichGraph, type AnalyzedSupplier, type SupplierInput } from "@/lib/risk-engine";
-import { fetchWeather } from "@/lib/weather";
+import { runAnalysis } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
-const SAMPLE: SupplierInput[] = [
-  { name: "ABC Corp", city: "Shanghai", dependency: "High", category: "Electronics", tier: "Tier 1", parent_supplier: "" },
-  { name: "SubSupplier A", city: "Shenzhen", dependency: "High", category: "Components", tier: "Tier 2", parent_supplier: "ABC Corp" },
-  { name: "Rare Earth Co", city: "Beijing", dependency: "Medium", category: "Components", tier: "Tier 3", parent_supplier: "SubSupplier A" },
-  { name: "XYZ Ltd", city: "Delhi", dependency: "Medium", category: "Electronics", tier: "Tier 1", parent_supplier: "" },
-  { name: "Nordic Steel", city: "Oslo", dependency: "Low", category: "Metals", tier: "Tier 1", parent_supplier: "" },
-  { name: "Pacific Textiles", city: "Karachi", dependency: "High", category: "Textiles", tier: "Tier 1", parent_supplier: "" },
-  { name: "Bavarian Motors", city: "Munich", dependency: "Low", category: "Automotive", tier: "Tier 1", parent_supplier: "" },
-  { name: "Tokyo Chips", city: "Tokyo", dependency: "Low", category: "Semiconductors", tier: "Tier 2", parent_supplier: "ABC Corp" },
-  { name: "Lagos Energy", city: "Lagos", dependency: "High", category: "Energy", tier: "Tier 1", parent_supplier: "" },
-  { name: "Moscow Refinery", city: "Moscow", dependency: "High", category: "Chemicals", tier: "Tier 2", parent_supplier: "Lagos Energy" },
-];
+type Supplier = any;
 
 const Index = () => {
-  const [suppliers, setSuppliers] = useState<AnalyzedSupplier[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const runAnalysis = async (rows: SupplierInput[]) => {
-    setLoading(true);
-    const results = await Promise.all(
-      rows.map(async (r) => {
-        const w = await fetchWeather(r.city);
-        return analyze(r, w);
-      })
-    );
-    setSuppliers(enrichGraph(results));
-    setLoading(false);
-  };
+  const { logout, user } = useAuth();
+  const { toast } = useToast();
 
-  useEffect(() => { runAnalysis(SAMPLE); /* eslint-disable-next-line */ }, []);
+  // 🔥 Backend call
+  const handleAnalysis = async (rows: any[]) => {
+    setLoading(true);
+    try {
+      const result = await runAnalysis(rows);
+
+      // Safe fallback
+      const data = Array.isArray(result)
+        ? result
+        : result?.suppliers || [];
+
+      setSuppliers(data);
+    } catch (error: any) {
+      toast({
+        title: "Analysis Failed",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border/60 backdrop-blur-md">
-        <div className="container flex items-center justify-between py-5">
-          <div className="flex items-center gap-3">
-            <div className="gradient-primary shadow-glow flex h-10 w-10 items-center justify-center rounded-xl text-primary-foreground">
-              <Radar className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">
-                Rebel <span className="text-gradient-primary">Supply Chain</span>
-              </h1>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">AI Resilience & Risk Analyzer</p>
-            </div>
-          </div>
-          <div className="hidden items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground md:flex">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+
+      {/* HEADER */}
+      <header className="border-b p-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <Radar className="h-6 w-6 text-blue-500" />
+          <h1 className="text-lg font-bold">
+            Rebel Supply Chain
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {user && (
+            <span className="text-sm text-gray-500">
+              Welcome, {user.name}
             </span>
-            Engine online · {suppliers.length} signals tracked
-          </div>
+          )}
+
+          <Button onClick={logout} variant="outline">
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
         </div>
       </header>
 
-      <main className="container space-y-6 py-8">
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Operational Intelligence Dashboard</h2>
-          </div>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Upload your supplier register or use the sample dataset. The engine fuses dependency, weather, geopolitical and logistics signals into a unified resilience score — and predicts disruptions before they hit.
-          </p>
-        </section>
+      {/* MAIN */}
+      <main className="p-6 space-y-6">
 
-        <UploadPanel onData={runAnalysis} onLoadSample={() => runAnalysis(SAMPLE)} />
+        {/* TITLE */}
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-blue-500" />
+          <h2 className="text-2xl font-bold">
+            Operational Dashboard
+          </h2>
+        </div>
 
+        {/* 🔥 Upload */}
+        <UploadPanel onData={handleAnalysis} />
+
+        {/* 🔥 Content */}
         {loading ? (
-          <div className="flex h-64 items-center justify-center text-muted-foreground">Analyzing signals…</div>
+          <div className="text-center py-10">Loading...</div>
         ) : suppliers.length === 0 ? (
-          <div className="flex h-64 items-center justify-center text-muted-foreground">Upload a CSV to begin.</div>
+          <div className="text-center py-10 text-gray-500">
+            Upload CSV to start
+          </div>
         ) : (
           <>
             <KpiCards suppliers={suppliers} />
             <RiskCharts suppliers={suppliers} />
-            <div className="grid gap-4 lg:grid-cols-2">
+
+            <div className="grid md:grid-cols-2 gap-4">
               <AlertsPanel suppliers={suppliers} />
               <Recommendations suppliers={suppliers} />
             </div>
+
             <SupplierTable suppliers={suppliers} />
           </>
         )}
 
-        <footer className="pt-8 text-center text-xs text-muted-foreground">
-          Built with React + Tailwind · Weather via OpenWeatherMap (optional) · CSV format: <code className="rounded bg-secondary/60 px-1.5 py-0.5">name,city,dependency,category,tier,parent_supplier</code>
-        </footer>
       </main>
     </div>
   );
